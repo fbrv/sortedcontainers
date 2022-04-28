@@ -1,7 +1,7 @@
 [package]
 name = "svector"
 version = "0.0.1"
-authors = ["Fabio"]
+authors = ["Fabio Baravalle <Fabio.Baravalle@gmail.com>"]
 license = "MIT OR Apache-2.0"
 description = "An experimental sorted data structure"
 readme = "README.MD"
