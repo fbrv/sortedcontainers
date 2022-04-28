@@ -1,5 +1,7 @@
 use std::cmp::Ordering;
+use std::ops::Index;
 use std::ptr;
+use crate::errors::SvectorError;
 
 pub enum OrderType {
     Asc,
@@ -22,10 +24,10 @@ impl<T: Ord + Clone> Default for Svector<T> {
             index: Vec::new(),
             order_type: OrderType::Asc,
             len: 0,
-            expand_strategy: |len, pos| {
+            expand_strategy: |len, _pos| {
                 len > 2_000
             },
-            shrink_strategy:  |len, pos| {
+            shrink_strategy:  |len, _pos| {
                 len < 500
             },
         }
@@ -53,12 +55,12 @@ impl<T: Ord + Clone> Svector<T> {
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }
-    pub fn insert(&mut self, value: T) {
+    pub fn insert(&mut self, value: T) -> Result<usize, SvectorError<T>> {
         if self.maxes.is_empty() {
             self.data[0].push(value.clone());
             self.maxes.push(value);
             self.len += 1;
-            return;
+            return Ok(0);
         }
         let mut pos: usize = 0;
         if self.maxes.len() > 1 {
@@ -71,17 +73,16 @@ impl<T: Ord + Clone> Svector<T> {
             pos -= 1;
         }
         match self.bisect(&self.data[pos], &value) {
-            Ok(idx) => self.data[pos][idx] = value,
+            Ok(idx) => Err(SvectorError::ElementAlreadyExist(value)),
             Err(idx) => {
-                if idx == self.data[pos].len() {
-                    self.maxes[pos] = value.clone();
-                }
                 self.data[pos].insert(idx, value);
                 self.len += 1;
                 self.update_index(pos, 1);
+                let final_pos = self.index_from_tuple((pos, idx));
                 if (self.expand_strategy)(self.data[pos].len(), pos) {
                     self.expand(pos);
                 }
+                Ok(final_pos)
             }
         }
     }
@@ -139,7 +140,10 @@ impl<T: Ord + Clone> Svector<T> {
         (data_pos, index - self.index[data_pos])
     }
     fn index_from_tuple(&self, pos: (usize, usize)) -> usize {
-        self.index[pos.0] + pos.1
+        if self.data.len() > 1 {
+            return self.index[pos.0] + pos.1;
+        }
+        pos.1
     }
     fn bisect(&self, values: &[T], value: &T) -> Result<usize, usize> {
         let mut low: usize = 0;
@@ -222,6 +226,51 @@ impl<T: Ord + Clone> Svector<T> {
             for i in (pos+1)..self.index.len() {
                 self.index[i] = (self.index[i] as i32 + values_len) as usize;
             }
+        }
+    }
+}
+impl<T: Ord + Clone> Index<usize> for Svector<T> {
+    type Output = T;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        assert!(index < self.len(), "index out of bound");
+        let pos = self.tuple_from_index(index);
+        &self.data[pos.0][pos.1]
+    }
+}
+#[cfg(test)]
+mod side_test {
+    use crate::svector::{OrderType, Svector};
+
+    #[test]
+    fn asc_ordered_insertion() {
+        let mut vec: Svector<i32> = Svector::default();
+        for i in -5_000..5_000 {
+            match vec.insert(i) {
+                Ok(_) => assert!(true),
+                Err(_) => assert!(false),
+            }
+        }
+        for i in 0..10_000 {
+            let v = vec[i];
+            let expected_value = i as i32 - 5000;
+            assert!(expected_value == v);
+        }
+    }
+    #[test]
+    fn desc_ordered_insertion() {
+        let mut vec: Svector<i32> = Svector::new(OrderType::Desc);
+        for i in -5_000..5_000 {
+            match vec.insert(i) {
+                Ok(_) => assert!(true),
+                Err(_) => assert!(false),
+            }
+        }
+        let mut expected_value = 4_999;
+        for i in 0..10_000 {
+            let v = vec[i];
+            assert!(expected_value == v);
+            expected_value -= 1;
         }
     }
 }

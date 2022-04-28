@@ -1,4 +1,5 @@
 pub(crate) mod svector;
+mod errors;
 
 #[cfg(test)]
 mod tests {

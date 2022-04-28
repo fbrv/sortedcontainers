@@ -9,6 +9,11 @@ homepage = "https://github.com/fbrv/svector"
 repository = "https://github.com/fbrv/svector"
 keywords = ["sort", "datastructure"]
 categories = ["data-structures", "algorithms"]
-
+edition= "2021"
 
 [dependencies]
+thiserror = "1.0.30"
+
+[dev-dependencies]
+rand = "0.8.5"
+more-asserts = "0.2.2"
