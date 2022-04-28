@@ -53,7 +53,7 @@ jobs:
       packages: "write"
       pages:  "write"
       pull-requests:  "write"
-      repository-projects:  "write"
+      repository-projects:  "none"
       security-events:  "none"
       statuses:  "none"
     runs-on: ubuntu-latest
