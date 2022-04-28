@@ -55,7 +55,7 @@ jobs:
       pull-requests:  "write"
       repository-projects:  "write"
       security-events:  "write"
-      statuses:  "write"
+      statuses:  "none"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
