@@ -54,7 +54,7 @@ jobs:
       pages:  "write"
       pull-requests:  "write"
       repository-projects:  "write"
-      security-events:  "write"
+      security-events:  "none"
       statuses:  "none"
     runs-on: ubuntu-latest
     steps:
