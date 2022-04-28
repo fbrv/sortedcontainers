@@ -1,7 +1,7 @@
+use crate::errors::SvectorError;
 use std::cmp::Ordering;
 use std::ops::Index;
 use std::ptr;
-use crate::errors::SvectorError;
 
 pub enum OrderType {
     Asc,
@@ -24,29 +24,21 @@ impl<T: Ord + Clone> Default for Svector<T> {
             index: Vec::new(),
             order_type: OrderType::Asc,
             len: 0,
-            expand_strategy: |len, _pos| {
-                len > 2_000
-            },
-            shrink_strategy:  |len, _pos| {
-                len < 500
-            },
+            expand_strategy: |len, _pos| len > 2_000,
+            shrink_strategy: |len, _pos| len < 500,
         }
     }
 }
 impl<T: Ord + Clone> Svector<T> {
     pub fn new(order_type: OrderType) -> Svector<T> {
-        Svector{
+        Svector {
             data: vec![Vec::new()],
             maxes: Vec::new(),
             index: Vec::new(),
             order_type,
             len: 0,
-            expand_strategy: |len, pos| {
-                len > 2_000
-            },
-            shrink_strategy:  |len, pos| {
-                len < 500
-            },
+            expand_strategy: |len, pos| len > 2_000,
+            shrink_strategy: |len, pos| len < 500,
         }
     }
     pub fn len(&self) -> usize {
@@ -110,9 +102,7 @@ impl<T: Ord + Clone> Svector<T> {
                 }
                 Ok(removed_val)
             }
-            Err(_) => {
-                Err(String::from("element not found!"))
-            }
+            Err(_) => Err(String::from("element not found!")),
         }
     }
     fn positional_search(&self, position: &usize) -> Result<usize, usize> {
@@ -123,7 +113,7 @@ impl<T: Ord + Clone> Svector<T> {
             match self.index[middle].cmp(position) {
                 Ordering::Less => low = middle + 1,
                 Ordering::Equal => return Ok(middle + 1),
-                Ordering::Greater => high = middle
+                Ordering::Greater => high = middle,
             }
         }
         Err(low)
@@ -151,19 +141,15 @@ impl<T: Ord + Clone> Svector<T> {
         while low < high {
             let middle = (high + low) >> 1;
             match values[middle].cmp(value) {
-                Ordering::Less => {
-                    match self.order_type {
-                        OrderType::Asc => low = middle + 1,
-                        OrderType::Desc => high = middle,
-                    }
+                Ordering::Less => match self.order_type {
+                    OrderType::Asc => low = middle + 1,
+                    OrderType::Desc => high = middle,
                 },
                 Ordering::Equal => return Ok(middle),
-                Ordering::Greater => {
-                    match self.order_type {
-                        OrderType::Asc => high = middle,
-                        OrderType::Desc => low = middle + 1
-                    }
-                }
+                Ordering::Greater => match self.order_type {
+                    OrderType::Asc => high = middle,
+                    OrderType::Desc => low = middle + 1,
+                },
             }
         }
         match self.order_type {
@@ -179,12 +165,17 @@ impl<T: Ord + Clone> Svector<T> {
         let split_at = c_len / 2;
         let new_len = self.data[pos].len() - split_at;
         let mut new_vec = Vec::with_capacity(c_len);
-        unsafe  {
+        unsafe {
             self.data[pos].set_len(split_at);
             new_vec.set_len(new_len);
-            ptr::copy_nonoverlapping(self.data[pos].as_ptr().add(split_at), new_vec.as_mut_ptr(), new_vec.len());
+            ptr::copy_nonoverlapping(
+                self.data[pos].as_ptr().add(split_at),
+                new_vec.as_mut_ptr(),
+                new_vec.len(),
+            );
         }
-        self.maxes.insert(pos + 1, new_vec[new_vec.len() - 1].clone());
+        self.maxes
+            .insert(pos + 1, new_vec[new_vec.len() - 1].clone());
         self.data.insert(pos + 1, new_vec);
         self.maxes[pos] = self.data[pos][self.data[pos].len() - 1].clone();
         self.build_index();
@@ -213,17 +204,19 @@ impl<T: Ord + Clone> Svector<T> {
     }
     fn build_index(&mut self) {
         if self.is_empty() || self.maxes.len() < 2 {
+            self.index.clear();
             return;
         }
         self.index.clear();
         self.index.push(0);
         for i in 0..self.data.len() {
-            self.index.push(self.index[self.index.len() - 1] + self.data[i].len());
+            self.index
+                .push(self.index[self.index.len() - 1] + self.data[i].len());
         }
     }
     fn update_index(&mut self, pos: usize, values_len: i32) {
         if self.maxes.len() > 1 {
-            for i in (pos+1)..self.index.len() {
+            for i in (pos + 1)..self.index.len() {
                 self.index[i] = (self.index[i] as i32 + values_len) as usize;
             }
         }

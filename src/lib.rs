@@ -1,5 +1,5 @@
-pub(crate) mod svector;
 mod errors;
+pub(crate) mod svector;
 
 #[cfg(test)]
 mod tests {
