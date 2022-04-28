@@ -1,8 +1,14 @@
 [package]
 name = "svector"
-version = "0.1.0"
-edition = "2021"
+version = "0.0.1"
+authors = ["Fabio"]
+license = "MIT OR Apache-2.0"
+description = "An experimental sorted data structure"
+readme = "README.MD"
+homepage = "https://github.com/fbrv/svector"
+repository = "https://github.com/fbrv/svector"
+keywords = ["sort", "datastructure"]
+categories = ["data-structures", "algorithms"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
