@@ -247,9 +247,9 @@ impl<T: Ord + Clone> Index<usize> for SortedContainers<T> {
 }
 #[cfg(test)]
 mod test {
+    use crate::sorted_containers::{OrderType, SortedContainers};
     use rand::prelude::SliceRandom;
     use rand::{random, thread_rng};
-    use crate::sorted_containers::{OrderType, SortedContainers};
 
     #[test]
     fn asc_ordered_insertion() {
