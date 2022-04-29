@@ -47,6 +47,12 @@ impl<T: Ord + Clone> SortedContainers<T> {
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }
+    pub fn clear(&mut self) {
+        self.data.clear();
+        self.maxes.clear();
+        self.index.clear();
+        self.len = 0;
+    }
     pub fn find(&self, value: &T) -> Result<usize, SortedContainersError<T>> {
         match self.search_element(value) {
             Ok(pos) => Ok(self.index_from_tuple(pos)),
@@ -55,6 +61,9 @@ impl<T: Ord + Clone> SortedContainers<T> {
     }
     pub fn insert(&mut self, value: T) -> Result<usize, SortedContainersError<T>> {
         if self.maxes.is_empty() {
+            if self.data.len() == 0 {
+                self.data.push(Vec::new());
+            }
             self.data[0].push(value.clone());
             self.maxes.push(value);
             self.len += 1;
@@ -82,6 +91,9 @@ impl<T: Ord + Clone> SortedContainers<T> {
                 self.len -= 1;
                 if self.len() == 0 {
                     self.maxes.clear();
+                    self.data.clear();
+                    self.index.clear();
+                    return Ok(removed_val);
                 }
                 if self.maxes.len() > 1 && (self.shrink_strategy)(self.data[pos].len(), pos) {
                     self.shrink(pos);
@@ -235,11 +247,14 @@ impl<T: Ord + Clone> Index<usize> for SortedContainers<T> {
 }
 #[cfg(test)]
 mod test {
+    use rand::prelude::SliceRandom;
+    use rand::{random, thread_rng};
     use crate::sorted_containers::{OrderType, SortedContainers};
 
     #[test]
     fn asc_ordered_insertion() {
         let mut vec: SortedContainers<i32> = SortedContainers::default();
+        let mut rng = thread_rng();
         for i in -5_000..5_000 {
             match vec.insert(i) {
                 Ok(_) => assert!(true),
@@ -251,9 +266,24 @@ mod test {
             let expected_value = i as i32 - 5000;
             assert!(expected_value == v);
         }
+        vec.clear();
+        let mut random_vec: Vec<i32> = (-5_000..5_000).collect();
+        random_vec.shuffle(&mut rng);
+        for el in random_vec {
+            match vec.insert(el) {
+                Ok(_) => assert!(true),
+                Err(_) => assert!(false),
+            }
+        }
+        let mut prev_element = vec[0];
+        for el in 1..10_0000 {
+            assert!(prev_element < el);
+            prev_element = el;
+        }
     }
     #[test]
     fn desc_ordered_insertion() {
+        let mut rng = thread_rng();
         let mut vec: SortedContainers<i32> = SortedContainers::new(OrderType::Desc);
         for i in -5_000..5_000 {
             match vec.insert(i) {
@@ -266,6 +296,20 @@ mod test {
             let v = vec[i];
             assert!(expected_value == v);
             expected_value -= 1;
+        }
+        vec.clear();
+        let mut random_vec: Vec<i32> = (-5_000..5_000).collect();
+        random_vec.shuffle(&mut rng);
+        for el in random_vec {
+            match vec.insert(el) {
+                Ok(_) => assert!(true),
+                Err(_) => assert!(false),
+            }
+        }
+        let mut prev_element = vec[0];
+        for i in 1..10_000 {
+            assert!(prev_element > vec[i]);
+            prev_element = vec[i];
         }
     }
     #[test]
@@ -302,5 +346,34 @@ mod test {
             }
             expected_element += 1;
         }
+    }
+    #[test]
+    fn remove_elements() {
+        let mut rng = thread_rng();
+        let mut vec: SortedContainers<i32> = SortedContainers::default();
+        let mut random_vec: Vec<i32> = (-5_000..5_000).collect();
+        random_vec.shuffle(&mut rng);
+        for el in random_vec {
+            match vec.insert(el) {
+                Ok(_) => assert!(true),
+                Err(_) => assert!(false),
+            }
+        }
+        for i in -5_000..5_000 {
+            match vec.remove(&i) {
+                Ok(removed_el) => assert!(removed_el == i),
+                Err(_) => assert!(false),
+            }
+            if i % 1_000 == 0 {
+                let mut prev_el = vec[0];
+                for idx in 1..vec.len() {
+                    assert!(prev_el < vec[idx]);
+                    prev_el = vec[idx];
+                }
+            }
+        }
+        assert!(vec.len() == 0);
+        assert!(vec.data.len() == 0);
+        assert!(vec.maxes.len() == 0);
     }
 }
