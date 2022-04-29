@@ -7,6 +7,12 @@ pub enum OrderType {
     Asc,
     Desc,
 }
+#[derive(PartialEq)]
+enum ProcessType {
+    Insert,
+    Update,
+    InsertOrUpdate,
+}
 pub struct SortedContainers<T> {
     data: Vec<Vec<T>>,
     maxes: Vec<T>,
@@ -60,28 +66,13 @@ impl<T: Ord + Clone> SortedContainers<T> {
         }
     }
     pub fn insert(&mut self, value: T) -> Result<usize, SortedContainersError<T>> {
-        if self.maxes.is_empty() {
-            if self.data.len() == 0 {
-                self.data.push(Vec::new());
-            }
-            self.data[0].push(value.clone());
-            self.maxes.push(value);
-            self.len += 1;
-            return Ok(0);
-        }
-        match self.search_element(&value) {
-            Ok(_) => Err(SortedContainersError::ElementAlreadyExist(value)),
-            Err((pos, idx)) => {
-                self.data[pos].insert(idx, value);
-                self.len += 1;
-                self.update_index(pos, 1);
-                let final_pos = self.index_from_tuple((pos, idx));
-                if (self.expand_strategy)(self.data[pos].len(), pos) {
-                    self.expand(pos);
-                }
-                Ok(final_pos)
-            }
-        }
+        self.process_element(value, ProcessType::Insert)
+    }
+    pub fn update(&mut self, value: T) -> Result<usize, SortedContainersError<T>> {
+        self.process_element(value, ProcessType::Update)
+    }
+    pub fn insert_or_update(&mut self, value: T) -> Result<usize, SortedContainersError<T>> {
+        self.process_element(value, ProcessType::InsertOrUpdate)
     }
     pub fn remove(&mut self, value: &T) -> Result<T, String> {
         match self.search_element(value) {
@@ -235,6 +226,51 @@ impl<T: Ord + Clone> SortedContainers<T> {
             }
         }
     }
+    fn process_element(
+        &mut self,
+        value: T,
+        process_type: ProcessType,
+    ) -> Result<usize, SortedContainersError<T>> {
+        if self.maxes.is_empty()
+            && (process_type == ProcessType::Insert || process_type == ProcessType::InsertOrUpdate)
+        {
+            if self.data.len() == 0 {
+                self.data.push(Vec::new());
+            }
+            self.data[0].push(value.clone());
+            self.maxes.push(value);
+            self.len += 1;
+            return Ok(0);
+        }
+        return match self.search_element(&value) {
+            Ok(pos) => {
+                if process_type == ProcessType::Update
+                    || process_type == ProcessType::InsertOrUpdate
+                {
+                    self.data[pos.0][pos.1] = value;
+                    Ok(self.index_from_tuple(pos))
+                } else {
+                    Err(SortedContainersError::ElementAlreadyExist(value))
+                }
+            }
+            Err((pos, idx)) => {
+                if process_type == ProcessType::Insert
+                    || process_type == ProcessType::InsertOrUpdate
+                {
+                    self.data[pos].insert(idx, value);
+                    self.len += 1;
+                    self.update_index(pos, 1);
+                    let final_pos = self.index_from_tuple((pos, idx));
+                    if (self.expand_strategy)(self.data[pos].len(), pos) {
+                        self.expand(pos);
+                    }
+                    Ok(final_pos)
+                } else {
+                    Err(SortedContainersError::ElementNotFound(value))
+                }
+            }
+        };
+    }
 }
 impl<T: Ord + Clone> Index<usize> for SortedContainers<T> {
     type Output = T;
@@ -249,7 +285,7 @@ impl<T: Ord + Clone> Index<usize> for SortedContainers<T> {
 mod test {
     use crate::sorted_containers::{OrderType, SortedContainers};
     use rand::prelude::SliceRandom;
-    use rand::{random, thread_rng};
+    use rand::thread_rng;
 
     #[test]
     fn asc_ordered_insertion() {
@@ -264,7 +300,7 @@ mod test {
         for i in 0..10_000 {
             let v = vec[i];
             let expected_value = i as i32 - 5000;
-            assert!(expected_value == v);
+            assert_eq!(expected_value, v);
         }
         vec.clear();
         let mut random_vec: Vec<i32> = (-5_000..5_000).collect();
@@ -294,7 +330,7 @@ mod test {
         let mut expected_value = 4_999;
         for i in 0..10_000 {
             let v = vec[i];
-            assert!(expected_value == v);
+            assert_eq!(expected_value, v);
             expected_value -= 1;
         }
         vec.clear();
@@ -314,34 +350,22 @@ mod test {
     }
     #[test]
     fn remove_element() {
-        let mut vec: SortedContainers<i32> = SortedContainers::default();
-        for i in -5_000..5_000 {
-            match vec.insert(i) {
-                Ok(_) => assert!(true),
-                Err(_) => assert!(false),
-            }
-        }
+        let mut vec = gen_random_vec(OrderType::Asc);
         for i in 0..10_000 {
             let to_remove = i - 5000;
             match vec.remove(&to_remove) {
-                Ok(removed_value) => assert!(to_remove == removed_value),
+                Ok(removed_value) => assert_eq!(to_remove, removed_value),
                 Err(_) => assert!(false),
             }
         }
     }
     #[test]
     fn find_element() {
-        let mut vec: SortedContainers<i32> = SortedContainers::default();
-        for i in -5_000..5_000 {
-            match vec.insert(i) {
-                Ok(_) => assert!(true),
-                Err(_) => assert!(false),
-            }
-        }
+        let vec = gen_random_vec(OrderType::Asc);
         let mut expected_element = -5000;
         for i in 0..10_000 {
             match vec.find(&expected_element) {
-                Ok(pos) => assert!(i == pos),
+                Ok(pos) => assert_eq!(i, pos),
                 Err(_) => assert!(false),
             }
             expected_element += 1;
@@ -349,19 +373,10 @@ mod test {
     }
     #[test]
     fn remove_elements() {
-        let mut rng = thread_rng();
-        let mut vec: SortedContainers<i32> = SortedContainers::default();
-        let mut random_vec: Vec<i32> = (-5_000..5_000).collect();
-        random_vec.shuffle(&mut rng);
-        for el in random_vec {
-            match vec.insert(el) {
-                Ok(_) => assert!(true),
-                Err(_) => assert!(false),
-            }
-        }
+        let mut vec = gen_random_vec(OrderType::Asc);
         for i in -5_000..5_000 {
             match vec.remove(&i) {
-                Ok(removed_el) => assert!(removed_el == i),
+                Ok(removed_el) => assert_eq!(removed_el, i),
                 Err(_) => assert!(false),
             }
             if i % 1_000 == 0 {
@@ -372,8 +387,22 @@ mod test {
                 }
             }
         }
-        assert!(vec.len() == 0);
-        assert!(vec.data.len() == 0);
-        assert!(vec.maxes.len() == 0);
+        assert_eq!(vec.len(), 0);
+        assert_eq!(vec.data.len(), 0);
+        assert_eq!(vec.maxes.len(), 0);
+    }
+
+    fn gen_random_vec(order_type: OrderType) -> SortedContainers<i32> {
+        let mut rng = thread_rng();
+        let mut vec: SortedContainers<i32> = SortedContainers::new(order_type);
+        let mut elements: Vec<i32> = (-5_000..5_000).collect();
+        elements.shuffle(&mut rng);
+        for el in elements {
+            match vec.insert(el) {
+                Ok(_) => assert!(true),
+                Err(_) => assert!(false),
+            }
+        }
+        vec
     }
 }

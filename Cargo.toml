@@ -1,6 +1,6 @@
 [package]
 name = "sortedcontainers"
-version = "0.0.1"
+version = "0.1.0-alpha.2"
 authors = ["Fabio Baravalle <Fabio.Baravalle@gmail.com>"]
 license = "MIT OR Apache-2.0"
 description = "An experimental sorted data structure"
@@ -10,6 +10,7 @@ repository = "https://github.com/fbrv/sortedcontainers"
 keywords = ["sort", "datastructure", "sortedcontainer", "sortedcontainers"]
 categories = ["data-structures", "algorithms", "sorted-containers"]
 edition= "2021"
+exclude = ["benchmarks"]
 
 [dependencies]
 thiserror = "1.0.30"
