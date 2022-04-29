@@ -134,9 +134,7 @@ impl<T: Ord + Clone> SortedContainers<T> {
         }
         match self.bisect(&self.data[pos], &value) {
             Ok(idx) => Ok((pos, idx)),
-            Err(idx) => {
-                Err((pos, idx))
-            }
+            Err(idx) => Err((pos, idx)),
         }
     }
     fn bisect(&self, values: &[T], value: &T) -> Result<usize, usize> {
