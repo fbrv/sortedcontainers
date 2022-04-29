@@ -1,5 +1,5 @@
 [package]
-name = "svector"
+name = "sortedcontainers"
 version = "0.0.1"
 authors = ["Fabio Baravalle <Fabio.Baravalle@gmail.com>"]
 license = "MIT OR Apache-2.0"

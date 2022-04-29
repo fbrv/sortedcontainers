@@ -1,4 +1,4 @@
-use crate::errors::SvectorError;
+use crate::errors::SortedContainersError;
 use std::cmp::Ordering;
 use std::ops::Index;
 use std::ptr;
@@ -7,7 +7,7 @@ pub enum OrderType {
     Asc,
     Desc,
 }
-pub struct Svector<T> {
+pub struct SortedContainers<T> {
     data: Vec<Vec<T>>,
     maxes: Vec<T>,
     index: Vec<usize>,
@@ -16,9 +16,9 @@ pub struct Svector<T> {
     expand_strategy: fn(usize, usize) -> bool,
     shrink_strategy: fn(usize, usize) -> bool,
 }
-impl<T: Ord + Clone> Default for Svector<T> {
+impl<T: Ord + Clone> Default for SortedContainers<T> {
     fn default() -> Self {
-        Svector {
+        SortedContainers {
             data: vec![Vec::new()],
             maxes: Vec::new(),
             index: Vec::new(),
@@ -29,16 +29,16 @@ impl<T: Ord + Clone> Default for Svector<T> {
         }
     }
 }
-impl<T: Ord + Clone> Svector<T> {
-    pub fn new(order_type: OrderType) -> Svector<T> {
-        Svector {
+impl<T: Ord + Clone> SortedContainers<T> {
+    pub fn new(order_type: OrderType) -> SortedContainers<T> {
+        SortedContainers {
             data: vec![Vec::new()],
             maxes: Vec::new(),
             index: Vec::new(),
             order_type,
             len: 0,
-            expand_strategy: |len, pos| len > 2_000,
-            shrink_strategy: |len, pos| len < 500,
+            expand_strategy: |len, _pos| len > 2_000,
+            shrink_strategy: |len, _pos| len < 500,
         }
     }
     pub fn len(&self) -> usize {
@@ -47,26 +47,22 @@ impl<T: Ord + Clone> Svector<T> {
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }
-    pub fn insert(&mut self, value: T) -> Result<usize, SvectorError<T>> {
+    pub fn find(&self, value: &T) -> Result<usize, SortedContainersError<T>> {
+        match self.search_element(value) {
+            Ok(pos) => Ok(self.index_from_tuple(pos)),
+            Err(_) => Err(SortedContainersError::ElementNotFound(value.clone())),
+        }
+    }
+    pub fn insert(&mut self, value: T) -> Result<usize, SortedContainersError<T>> {
         if self.maxes.is_empty() {
             self.data[0].push(value.clone());
             self.maxes.push(value);
             self.len += 1;
             return Ok(0);
         }
-        let mut pos: usize = 0;
-        if self.maxes.len() > 1 {
-            match self.bisect(&self.maxes, &value) {
-                Ok(idx) => pos = idx,
-                Err(idx) => pos = idx,
-            }
-        }
-        if self.data.len() == pos {
-            pos -= 1;
-        }
-        match self.bisect(&self.data[pos], &value) {
-            Ok(idx) => Err(SvectorError::ElementAlreadyExist(value)),
-            Err(idx) => {
+        match self.search_element(&value) {
+            Ok(_) => Err(SortedContainersError::ElementAlreadyExist(value)),
+            Err((pos, idx)) => {
                 self.data[pos].insert(idx, value);
                 self.len += 1;
                 self.update_index(pos, 1);
@@ -79,19 +75,9 @@ impl<T: Ord + Clone> Svector<T> {
         }
     }
     pub fn remove(&mut self, value: &T) -> Result<T, String> {
-        let mut pos: usize = 0;
-        if self.maxes.len() > 1 {
-            match self.bisect(&self.maxes, value) {
-                Ok(idx) => pos = idx,
-                Err(idx) => pos = idx,
-            }
-        }
-        if self.data.len() == pos {
-            pos -= 1;
-        }
-        match self.bisect(&self.data[pos], value) {
-            Ok(data_pos) => {
-                let removed_val = self.data[pos].remove(data_pos);
+        match self.search_element(value) {
+            Ok((pos, idx)) => {
+                let removed_val = self.data[pos].remove(idx);
                 self.update_index(pos, -1);
                 self.len -= 1;
                 if self.len() == 0 {
@@ -134,6 +120,24 @@ impl<T: Ord + Clone> Svector<T> {
             return self.index[pos.0] + pos.1;
         }
         pos.1
+    }
+    fn search_element(&self, value: &T) -> Result<(usize, usize), (usize, usize)> {
+        let mut pos: usize = 0;
+        if self.maxes.len() > 1 {
+            match self.bisect(&self.maxes, &value) {
+                Ok(idx) => pos = idx,
+                Err(idx) => pos = idx,
+            }
+        }
+        if self.data.len() == pos {
+            pos -= 1;
+        }
+        match self.bisect(&self.data[pos], &value) {
+            Ok(idx) => Ok((pos, idx)),
+            Err(idx) => {
+                Err((pos, idx))
+            }
+        }
     }
     fn bisect(&self, values: &[T], value: &T) -> Result<usize, usize> {
         let mut low: usize = 0;
@@ -222,7 +226,7 @@ impl<T: Ord + Clone> Svector<T> {
         }
     }
 }
-impl<T: Ord + Clone> Index<usize> for Svector<T> {
+impl<T: Ord + Clone> Index<usize> for SortedContainers<T> {
     type Output = T;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -232,12 +236,12 @@ impl<T: Ord + Clone> Index<usize> for Svector<T> {
     }
 }
 #[cfg(test)]
-mod side_test {
-    use crate::svector::{OrderType, Svector};
+mod test {
+    use crate::sorted_containers::{OrderType, SortedContainers};
 
     #[test]
     fn asc_ordered_insertion() {
-        let mut vec: Svector<i32> = Svector::default();
+        let mut vec: SortedContainers<i32> = SortedContainers::default();
         for i in -5_000..5_000 {
             match vec.insert(i) {
                 Ok(_) => assert!(true),
@@ -252,7 +256,7 @@ mod side_test {
     }
     #[test]
     fn desc_ordered_insertion() {
-        let mut vec: Svector<i32> = Svector::new(OrderType::Desc);
+        let mut vec: SortedContainers<i32> = SortedContainers::new(OrderType::Desc);
         for i in -5_000..5_000 {
             match vec.insert(i) {
                 Ok(_) => assert!(true),
@@ -264,6 +268,41 @@ mod side_test {
             let v = vec[i];
             assert!(expected_value == v);
             expected_value -= 1;
+        }
+    }
+    #[test]
+    fn remove_element() {
+        let mut vec: SortedContainers<i32> = SortedContainers::default();
+        for i in -5_000..5_000 {
+            match vec.insert(i) {
+                Ok(_) => assert!(true),
+                Err(_) => assert!(false),
+            }
+        }
+        for i in 0..10_000 {
+            let to_remove = i - 5000;
+            match vec.remove(&to_remove) {
+                Ok(removed_value) => assert!(to_remove == removed_value),
+                Err(_) => assert!(false),
+            }
+        }
+    }
+    #[test]
+    fn find_element() {
+        let mut vec: SortedContainers<i32> = SortedContainers::default();
+        for i in -5_000..5_000 {
+            match vec.insert(i) {
+                Ok(_) => assert!(true),
+                Err(_) => assert!(false),
+            }
+        }
+        let mut expected_element = -5000;
+        for i in 0..10_000 {
+            match vec.find(&expected_element) {
+                Ok(pos) => assert!(i == pos),
+                Err(_) => assert!(false),
+            }
+            expected_element += 1;
         }
     }
 }

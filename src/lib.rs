@@ -1,5 +1,5 @@
 mod errors;
-pub(crate) mod svector;
+pub(crate) mod sorted_containers;
 
 #[cfg(test)]
 mod tests {
