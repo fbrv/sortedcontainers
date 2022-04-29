@@ -249,8 +249,7 @@ impl<T: Ord + Clone> Index<usize> for SortedContainers<T> {
 mod test {
     use crate::sorted_containers::{OrderType, SortedContainers};
     use rand::prelude::SliceRandom;
-    use rand::{random, thread_rng};
-    use crate::errors::SortedContainersError;
+    use rand::thread_rng;
 
     #[test]
     fn asc_ordered_insertion() {
@@ -326,7 +325,7 @@ mod test {
     }
     #[test]
     fn find_element() {
-        let mut vec = gen_random_vec(OrderType::Asc);
+        let vec = gen_random_vec(OrderType::Asc);
         let mut expected_element = -5000;
         for i in 0..10_000 {
             match vec.find(&expected_element) {
