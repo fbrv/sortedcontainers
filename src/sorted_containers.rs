@@ -250,6 +250,7 @@ mod test {
     use crate::sorted_containers::{OrderType, SortedContainers};
     use rand::prelude::SliceRandom;
     use rand::{random, thread_rng};
+    use crate::errors::SortedContainersError;
 
     #[test]
     fn asc_ordered_insertion() {
@@ -264,7 +265,7 @@ mod test {
         for i in 0..10_000 {
             let v = vec[i];
             let expected_value = i as i32 - 5000;
-            assert!(expected_value == v);
+            assert_eq!(expected_value, v);
         }
         vec.clear();
         let mut random_vec: Vec<i32> = (-5_000..5_000).collect();
@@ -294,7 +295,7 @@ mod test {
         let mut expected_value = 4_999;
         for i in 0..10_000 {
             let v = vec[i];
-            assert!(expected_value == v);
+            assert_eq!(expected_value, v);
             expected_value -= 1;
         }
         vec.clear();
@@ -314,34 +315,22 @@ mod test {
     }
     #[test]
     fn remove_element() {
-        let mut vec: SortedContainers<i32> = SortedContainers::default();
-        for i in -5_000..5_000 {
-            match vec.insert(i) {
-                Ok(_) => assert!(true),
-                Err(_) => assert!(false),
-            }
-        }
+        let mut vec = gen_random_vec(OrderType::Asc);
         for i in 0..10_000 {
             let to_remove = i - 5000;
             match vec.remove(&to_remove) {
-                Ok(removed_value) => assert!(to_remove == removed_value),
+                Ok(removed_value) => assert_eq!(to_remove, removed_value),
                 Err(_) => assert!(false),
             }
         }
     }
     #[test]
     fn find_element() {
-        let mut vec: SortedContainers<i32> = SortedContainers::default();
-        for i in -5_000..5_000 {
-            match vec.insert(i) {
-                Ok(_) => assert!(true),
-                Err(_) => assert!(false),
-            }
-        }
+        let mut vec = gen_random_vec(OrderType::Asc);
         let mut expected_element = -5000;
         for i in 0..10_000 {
             match vec.find(&expected_element) {
-                Ok(pos) => assert!(i == pos),
+                Ok(pos) => assert_eq!(i, pos),
                 Err(_) => assert!(false),
             }
             expected_element += 1;
@@ -349,19 +338,10 @@ mod test {
     }
     #[test]
     fn remove_elements() {
-        let mut rng = thread_rng();
-        let mut vec: SortedContainers<i32> = SortedContainers::default();
-        let mut random_vec: Vec<i32> = (-5_000..5_000).collect();
-        random_vec.shuffle(&mut rng);
-        for el in random_vec {
-            match vec.insert(el) {
-                Ok(_) => assert!(true),
-                Err(_) => assert!(false),
-            }
-        }
+        let mut vec = gen_random_vec(OrderType::Asc);
         for i in -5_000..5_000 {
             match vec.remove(&i) {
-                Ok(removed_el) => assert!(removed_el == i),
+                Ok(removed_el) => assert_eq!(removed_el, i),
                 Err(_) => assert!(false),
             }
             if i % 1_000 == 0 {
@@ -372,8 +352,22 @@ mod test {
                 }
             }
         }
-        assert!(vec.len() == 0);
-        assert!(vec.data.len() == 0);
-        assert!(vec.maxes.len() == 0);
+        assert_eq!(vec.len(), 0);
+        assert_eq!(vec.data.len(), 0);
+        assert_eq!(vec.maxes.len(), 0);
+    }
+
+    fn gen_random_vec(order_type: OrderType) -> SortedContainers<i32> {
+        let mut rng = thread_rng();
+        let mut vec: SortedContainers<i32> = SortedContainers::new(order_type);
+        let mut elements: Vec<i32> = (-5_000..5_000).collect();
+        elements.shuffle(&mut rng);
+        for el in elements {
+            match vec.insert(el) {
+                Ok(_) => assert!(true),
+                Err(_) => assert!(false),
+            }
+        }
+        vec
     }
 }
