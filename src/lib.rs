@@ -2,4 +2,4 @@
 //! You should only consider to use this crate if you want to access to the nth element
 //! in a sorted collection. For any other use cases rely on the battle tested BinaryHeap and BTreeMap data structure.
 mod errors;
-pub(crate) mod sorted_containers;
+pub mod sorted_containers;

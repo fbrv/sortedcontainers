@@ -18,3 +18,8 @@ thiserror = "1.0.30"
 [dev-dependencies]
 rand = "0.8.5"
 more-asserts = "0.2.2"
+criterion = "0.3.5"
+
+[[bench]]
+name = "sorted_containers"
+harness = false
