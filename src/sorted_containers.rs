@@ -430,7 +430,8 @@ mod test {
     }
     #[test]
     fn desc_ordered_insertion() {
-        let mut vec: SortedContainers<i32> = gen_continuos_sorted_containers(OrderType::Desc, false);
+        let mut vec: SortedContainers<i32> =
+            gen_continuos_sorted_containers(OrderType::Desc, false);
         let mut expected_value = 49_999;
         for i in 0..10_000 {
             let v = vec[i];
@@ -487,7 +488,10 @@ mod test {
         assert_eq!(vec.data.len(), 0);
         assert_eq!(vec.maxes.len(), 0);
     }
-    fn gen_continuos_sorted_containers(order_type: OrderType, shuffle: bool) -> SortedContainers<i32> {
+    fn gen_continuos_sorted_containers(
+        order_type: OrderType,
+        shuffle: bool,
+    ) -> SortedContainers<i32> {
         let mut rng = thread_rng();
         let mut vec = SortedContainers::new(order_type);
         let mut elements: Vec<i32> = (-50_000..50_000).collect();
@@ -497,7 +501,7 @@ mod test {
         for el in elements {
             match vec.insert(el) {
                 Ok(_) => assert!(true),
-                Err(_) => assert!(false)
+                Err(_) => assert!(false),
             }
         }
         vec
