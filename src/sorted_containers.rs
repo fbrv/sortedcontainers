@@ -382,152 +382,186 @@ impl<T: Ord + Clone> Index<usize> for SortedContainers<T> {
 mod test {
     use crate::errors::SortedContainersError;
     use crate::sorted_containers::{OrderType, SortedContainers};
-    use more_asserts::assert_le;
+    use more_asserts::{assert_gt, assert_le, assert_lt};
     use rand::prelude::SliceRandom;
     use rand::{thread_rng, Rng};
 
     #[test]
     fn asc_ordered_insertion() {
-        let mut vec: SortedContainers<i32> = gen_continuos_sorted_containers(OrderType::Asc, false);
-        for i in 0..100_000 {
-            let v = vec[i];
-            let expected_value = i as i32 - 50_000;
-            assert_eq!(expected_value, v);
+        let mut vec = gen_sorted_container(100_000, OrderType::Asc, false);
+        let mut prev_element = vec[0];
+        for i in 1..vec.len() {
+            assert_lt!(prev_element, vec[i]);
+            prev_element = vec[i];
         }
+        check_maxes(&vec, OrderType::Asc);
         vec.clear();
-        vec = gen_continuos_sorted_containers(OrderType::Asc, true);
-        let mut prev_element = vec[0];
-        for el in 1..100_0000 {
-            assert!(prev_element < el);
-            prev_element = el;
-        }
-    }
-    #[test]
-    fn asc_random_insertion() {
-        let mut vec: SortedContainers<i32> = gen_random_sorted_containers(OrderType::Asc, 100_000);
-        for i in 0..vec.data.len() {
-            let last_val = vec.data[i].last().unwrap();
-            assert_eq!(*last_val, vec.maxes[i]);
-        }
-        let mut prev_element = vec[0];
-        for i in 1..vec.len() {
-            assert_le!(prev_element, vec[i]);
-            prev_element = vec[i];
-        }
-    }
-    #[test]
-    fn desc_random_insertion() {
-        let mut vec: SortedContainers<i32> = gen_random_sorted_containers(OrderType::Desc, 100_000);
-        for i in 0..vec.data.len() {
-            let last_val = vec.data[i][0];
-            assert_eq!(vec.maxes[i], last_val);
-        }
-        let mut prev_element = vec[0];
-        for i in 1..vec.len() {
-            assert_le!(vec[i], prev_element);
-            prev_element = vec[i];
-        }
-    }
-    #[test]
-    fn desc_ordered_insertion() {
-        let mut vec: SortedContainers<i32> =
-            gen_continuos_sorted_containers(OrderType::Desc, false);
-        let mut expected_value = 49_999;
-        for i in 0..10_000 {
-            let v = vec[i];
-            assert_eq!(expected_value, v);
-            expected_value -= 1;
-        }
-        vec = gen_continuos_sorted_containers(OrderType::Desc, false);
-        let mut prev_element = vec[0];
-        for i in 1..100_000 {
-            assert!(prev_element > vec[i]);
-            prev_element = vec[i];
-        }
-    }
-    #[test]
-    fn remove_element() {
-        let mut vec = gen_random_vec(OrderType::Asc);
-        for i in 0..10_000 {
-            let to_remove = i - 5000;
-            match vec.remove(&to_remove) {
-                Ok(removed_value) => assert_eq!(to_remove, removed_value),
-                Err(_) => assert!(false),
-            }
-        }
-    }
-    #[test]
-    fn find_element() {
-        let vec = gen_random_vec(OrderType::Asc);
-        let mut expected_element = -5000;
-        for i in 0..10_000 {
-            match vec.find(&expected_element) {
-                Ok(pos) => assert_eq!(i, pos),
-                Err(_) => assert!(false),
-            }
-            expected_element += 1;
-        }
-    }
-    #[test]
-    fn remove_elements() {
-        let mut vec = gen_random_vec(OrderType::Asc);
-        for i in -5_000..5_000 {
-            match vec.remove(&i) {
-                Ok(removed_el) => assert_eq!(removed_el, i),
-                Err(_) => assert!(false),
-            }
-            if i % 1_000 == 0 {
-                let mut prev_el = vec[0];
-                for idx in 1..vec.len() {
-                    assert!(prev_el < vec[idx]);
-                    prev_el = vec[idx];
-                }
-            }
-        }
         assert_eq!(vec.len(), 0);
         assert_eq!(vec.data.len(), 0);
         assert_eq!(vec.maxes.len(), 0);
+        assert_eq!(vec.index.len(), 0);
     }
-    fn gen_continuos_sorted_containers(
+    #[test]
+    fn asc_random_insertion() {
+        let mut vec = gen_sorted_container(100_000, OrderType::Asc, true);
+        let mut prev_element = vec[0];
+        for i in 1..vec.len() {
+            assert_lt!(prev_element, vec[i]);
+            prev_element = vec[i];
+        }
+        check_maxes(&vec, OrderType::Asc);
+        vec.clear();
+        assert_eq!(vec.len(), 0);
+        assert_eq!(vec.data.len(), 0);
+        assert_eq!(vec.maxes.len(), 0);
+        assert_eq!(vec.index.len(), 0);
+    }
+    #[test]
+    fn desc_ordered_insertion() {
+        let mut vec = gen_sorted_container(100_000, OrderType::Desc, false);
+        let mut prev_element = vec[0];
+        for i in 1..vec.len() {
+            assert_gt!(prev_element, vec[i]);
+            prev_element = vec[i];
+        }
+        check_maxes(&vec, OrderType::Desc);
+        vec.clear();
+        assert_eq!(vec.len(), 0);
+        assert_eq!(vec.is_empty(), true);
+        assert_eq!(vec.data.len(), 0);
+        assert_eq!(vec.maxes.len(), 0);
+        assert_eq!(vec.index.len(), 0);
+    }
+    #[test]
+    fn desc_random_insertion() {
+        let mut vec = gen_sorted_container(100_000, OrderType::Desc, true);
+        let mut prev_element = vec[0];
+        for i in 1..vec.len() {
+            assert_gt!(prev_element, vec[i]);
+            prev_element = vec[i];
+        }
+        check_maxes(&vec, OrderType::Desc);
+        vec.clear();
+        assert_eq!(vec.len(), 0);
+        assert_eq!(vec.is_empty(), true);
+        assert_eq!(vec.data.len(), 0);
+        assert_eq!(vec.maxes.len(), 0);
+        assert_eq!(vec.index.len(), 0);
+    }
+
+    #[test]
+    fn test_insertion() {
+        let mut vec = SortedContainers::default();
+        match vec.insert(42) {
+            Ok(_) => assert!(true),
+            Err(_) => assert!(false),
+        }
+        match vec.insert(42) {
+            Ok(_) => assert!(false),
+            Err(_) => assert!(true),
+        }
+    }
+    #[test]
+    fn test_insertion_desc() {
+        let mut vec = SortedContainers::new(OrderType::Desc);
+        match vec.insert(42) {
+            Ok(_) => assert!(true),
+            Err(_) => assert!(false),
+        }
+        match vec.insert(42) {
+            Ok(_) => assert!(false),
+            Err(_) => assert!(true),
+        }
+    }
+    #[test]
+    fn test_update() {
+        let mut vec = SortedContainers::new(OrderType::Desc);
+        match vec.update(42) {
+            Ok(_) => assert!(false),
+            Err(_) => assert!(true),
+        }
+        match vec.insert(42) {
+            Ok(_) => assert!(true),
+            Err(_) => assert!(false),
+        }
+        match vec.update(42) {
+            Ok(_) => assert!(true),
+            Err(_) => assert!(false),
+        }
+    }
+    #[test]
+    fn test_remove() {
+        let mut rng = thread_rng();
+        let mut vec = gen_sorted_container(10_000, OrderType::Asc, true);
+        while vec.len() > 0 {
+            let idx = rng.gen_range(0..vec.len());
+            let el = vec[idx];
+            match vec.remove(&el) {
+                Ok(removed_element) => assert_eq!(el, removed_element),
+                Err(_) => assert!(false),
+            }
+            if !vec.is_empty() && vec.len() % 100 == 0 {
+                let mut prev_el = vec[0];
+                for i in 1..vec.len() {
+                    assert_lt!(prev_el, vec[i]);
+                    prev_el = vec[i];
+                }
+            }
+        }
+    }
+    #[test]
+    fn test_index() {
+        let vec = gen_sorted_container(100_000, OrderType::Asc, true);
+        let mut idx = 0;
+        let mut pos = 0;
+        test_index_check_trait(&vec);
+        let vec = gen_sorted_container(100_000, OrderType::Desc, true);
+        test_index_check_trait(&vec);
+    }
+
+    fn test_index_check_trait(vec: &SortedContainers<i32>) {
+        let mut idx = 0;
+        let mut pos = 0;
+        for i in 0..vec.len() {
+            if pos == vec.data[idx].len() {
+                pos = 0;
+                idx += 1;
+            }
+            assert_eq!(vec[i], vec.data[idx][pos]);
+            pos += 1;
+        }
+    }
+    fn check_maxes(vec: &SortedContainers<i32>, order_type: OrderType) {
+        for i in 0..vec.data.len() {
+            match order_type {
+                OrderType::Asc => {
+                    let last_el = vec.data[i].last().unwrap();
+                    assert_eq!(*last_el, vec.maxes[i]);
+                }
+                OrderType::Desc => {
+                    let first_el = vec.data[i].first().unwrap();
+                    assert_eq!(*first_el, vec.maxes[i]);
+                }
+            }
+        }
+    }
+    fn gen_sorted_container(
+        len: usize,
         order_type: OrderType,
         shuffle: bool,
     ) -> SortedContainers<i32> {
         let mut rng = thread_rng();
-        let mut vec = SortedContainers::new(order_type);
-        let mut elements: Vec<i32> = (-50_000..50_000).collect();
+        let mut sorted_vec = SortedContainers::new(order_type);
+        let mut elements: Vec<i32> = (-(len as i32)..len as i32).collect();
         if shuffle {
             elements.shuffle(&mut rng);
         }
         for el in elements {
-            match vec.insert(el) {
+            match sorted_vec.insert_or_update(el) {
                 Ok(_) => assert!(true),
                 Err(_) => assert!(false),
             }
         }
-        vec
-    }
-    fn gen_random_sorted_containers(order_type: OrderType, len: usize) -> SortedContainers<i32> {
-        let mut vec: SortedContainers<i32> = SortedContainers::new(order_type);
-        let mut rng = thread_rng();
-        for _i in 0..len {
-            match vec.insert_or_update(rng.gen_range(-1_000_000..1_000_000)) {
-                Ok(_) => assert!(true),
-                Err(_) => assert!(false),
-            }
-        }
-        vec
-    }
-    fn gen_random_vec(order_type: OrderType) -> SortedContainers<i32> {
-        let mut rng = thread_rng();
-        let mut vec: SortedContainers<i32> = SortedContainers::new(order_type);
-        let mut elements: Vec<i32> = (-5_000..5_000).collect();
-        elements.shuffle(&mut rng);
-        for el in elements {
-            match vec.insert(el) {
-                Ok(_) => assert!(true),
-                Err(_) => assert!(false),
-            }
-        }
-        vec
+        sorted_vec
     }
 }
