@@ -127,6 +127,32 @@ impl<T: Ord + Clone> SortedContainers<T> {
             Err(_) => Err(String::from("element not found!")),
         }
     }
+    /// Return a vector of elements in a specified range.
+    /// Panics in the following scenarios:
+    /// 1. start > end
+    /// 2. start >= collection length
+    /// 3. end >= collection length
+    pub fn range(&self, start: usize, end: usize) -> Option<Vec<T>> {
+        if start > end {
+            panic!("start position is greater than end position");
+        }
+        if start >= self.len() {
+            panic!("start is greater than total len");
+        }
+        if end >= self.len() {
+            panic!("end is greater than total len");
+        }
+        let mut vec = Vec::new();
+        for i in start..end {
+            let pos = self.tuple_from_index(i);
+            vec.push(self.data[pos.0][pos.1].clone());
+        }
+        if !vec.is_empty() {
+            Some(vec)
+        } else {
+            None
+        }
+    }
     /// given an position in input, the element at `self.data[position]` is splitted in half and the
     /// second part is inserted at `position + 1` inside the `self.data`
     #[inline]
@@ -380,9 +406,8 @@ impl<T: Ord + Clone> Index<usize> for SortedContainers<T> {
 }
 #[cfg(test)]
 mod test {
-    use crate::errors::SortedContainersError;
     use crate::sorted_containers::{OrderType, SortedContainers};
-    use more_asserts::{assert_gt, assert_le, assert_lt};
+    use more_asserts::{assert_gt, assert_lt};
     use rand::prelude::SliceRandom;
     use rand::{thread_rng, Rng};
 
@@ -512,11 +537,18 @@ mod test {
     #[test]
     fn test_index() {
         let vec = gen_sorted_container(100_000, OrderType::Asc, true);
-        let mut idx = 0;
-        let mut pos = 0;
         test_index_check_trait(&vec);
         let vec = gen_sorted_container(100_000, OrderType::Desc, true);
         test_index_check_trait(&vec);
+    }
+    #[test]
+    fn test_range() {
+        let vec = gen_sorted_container(5_000, OrderType::Asc, true);
+        let rng = vec.range(2500, 7500).unwrap();
+        for i in -2_500..2_500 {
+            let idx = (i + 2500) as usize;
+            assert_eq!(i, rng[idx]);
+        }
     }
 
     fn test_index_check_trait(vec: &SortedContainers<i32>) {
