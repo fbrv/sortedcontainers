@@ -4,4 +4,5 @@
 extern crate core;
 
 mod errors;
+pub mod sorted_container_iter;
 pub mod sorted_containers;

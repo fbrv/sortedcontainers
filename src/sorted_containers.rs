@@ -1,4 +1,5 @@
 use crate::errors::SortedContainersError;
+use crate::sorted_container_iter::SortedContainerIter;
 use std::cmp::Ordering;
 use std::ops::Index;
 use std::ptr;
@@ -56,6 +57,21 @@ impl<T: Ord + Clone> SortedContainers<T> {
             shrink_strategy: |len, _pos| len < 500,
         }
     }
+    pub fn new_with_strategies(
+        order_type: OrderType,
+        expand_strategy: fn(usize, usize) -> bool,
+        shrink_strategy: fn(usize, usize) -> bool,
+    ) -> SortedContainers<T> {
+        SortedContainers {
+            data: vec![Vec::new()],
+            maxes: Vec::new(),
+            index: Vec::new(),
+            order_type,
+            len: 0,
+            expand_strategy,
+            shrink_strategy,
+        }
+    }
     /// Returns the number of elements in the sortedcontainers, also referred as its 'length'.
     pub fn len(&self) -> usize {
         self.len
@@ -75,10 +91,10 @@ impl<T: Ord + Clone> SortedContainers<T> {
     /// Complexity is O(log(M)) + O(log(N))
     /// If the element exists in the collection the actual position is returned otherwise
     /// an error is returned
-    pub fn find(&self, element: &T) -> Result<usize, SortedContainersError<T>> {
+    pub fn find(&self, element: &T) -> Option<usize> {
         match self.search_element(element) {
-            Ok(pos) => Ok(self.index_from_tuple(pos)),
-            Err(_) => Err(SortedContainersError::ElementNotFound(element.clone())),
+            Ok(pos) => Some(self.index_from_tuple(pos)),
+            Err(_) => None,
         }
     }
     /// Insert an element inside the collection.
@@ -107,7 +123,7 @@ impl<T: Ord + Clone> SortedContainers<T> {
     /// Time complexity O(log(M)) + O(log(N)) + O(N)
     /// Given an element in input, a search is perfoemd. If the element exists inside the collection,
     /// the element is removed and returned. Otherwise an error is returned.
-    pub fn remove(&mut self, value: &T) -> Result<T, String> {
+    pub fn remove(&mut self, value: &T) -> Option<T> {
         match self.search_element(value) {
             Ok((pos, idx)) => {
                 let removed_val = self.data[pos].remove(idx);
@@ -117,14 +133,14 @@ impl<T: Ord + Clone> SortedContainers<T> {
                     self.maxes.clear();
                     self.data.clear();
                     self.index.clear();
-                    return Ok(removed_val);
+                    return Some(removed_val);
                 }
                 if self.maxes.len() > 1 && (self.shrink_strategy)(self.data[pos].len(), pos) {
                     self.shrink(pos);
                 }
-                Ok(removed_val)
+                Some(removed_val)
             }
-            Err(_) => Err(String::from("element not found!")),
+            Err(_) => None,
         }
     }
     /// Return a vector of elements in a specified range.
@@ -151,6 +167,35 @@ impl<T: Ord + Clone> SortedContainers<T> {
             Some(vec)
         } else {
             None
+        }
+    }
+    pub fn filter(&self, predicate: fn(&T) -> bool) -> Option<Vec<T>> {
+        let mut vec = Vec::new();
+        for i in 0..self.len() {
+            let pos = self.tuple_from_index(i);
+            if (predicate)(&self.data[pos.0][pos.1]) {
+                vec.push(self.data[pos.0][pos.1].clone());
+            }
+        }
+        if vec.is_empty() {
+            None
+        } else {
+            Some(vec)
+        }
+    }
+    pub fn map<K>(&self, predicate: fn(&T) -> K) -> Option<Vec<K>> {
+        let mut vec = Vec::new();
+        for i in 0..self.len() {
+            let pos = self.tuple_from_index(i);
+            vec.push((predicate)(&self.data[pos.0][pos.1]));
+        }
+        Some(vec)
+    }
+    pub fn iter(&self) -> SortedContainerIter<'_, T> {
+        SortedContainerIter {
+            data: &self.data,
+            pos: 0,
+            idx: 0,
         }
     }
     /// given an position in input, the element at `self.data[position]` is splitted in half and the
@@ -404,6 +449,15 @@ impl<T: Ord + Clone> Index<usize> for SortedContainers<T> {
         &self.data[pos.0][pos.1]
     }
 }
+impl<'a, T: Ord + Clone> IntoIterator for &'a SortedContainers<T> {
+    type Item = &'a T;
+
+    type IntoIter = SortedContainerIter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
 #[cfg(test)]
 mod test {
     use crate::sorted_containers::{OrderType, SortedContainers};
@@ -522,8 +576,8 @@ mod test {
             let idx = rng.gen_range(0..vec.len());
             let el = vec[idx];
             match vec.remove(&el) {
-                Ok(removed_element) => assert_eq!(el, removed_element),
-                Err(_) => assert!(false),
+                Some(removed_element) => assert_eq!(el, removed_element),
+                None => assert!(false),
             }
             if !vec.is_empty() && vec.len() % 100 == 0 {
                 let mut prev_el = vec[0];
@@ -548,6 +602,15 @@ mod test {
         for i in -2_500..2_500 {
             let idx = (i + 2500) as usize;
             assert_eq!(i, rng[idx]);
+        }
+    }
+    #[test]
+    fn test_iter() {
+        let vec = gen_sorted_container(5_000, OrderType::Asc, false);
+        let mut c_element = -5_000;
+        for el in &vec {
+            assert_eq!(c_element, *el);
+            c_element += 1;
         }
     }
 
