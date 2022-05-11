@@ -173,33 +173,6 @@ impl<T: Ord + Clone> SortedContainers<T> {
             None
         }
     }
-    /// Apply a filter function to the collection and returns the filtered entries, if any
-    pub fn filter(&self, predicate: fn(&T) -> bool) -> Option<Vec<T>> {
-        let mut vec = Vec::new();
-        for i in 0..self.len() {
-            let pos = self.tuple_from_index(i);
-            if (predicate)(&self.data[pos.0][pos.1]) {
-                vec.push(self.data[pos.0][pos.1].clone());
-            }
-        }
-        if vec.is_empty() {
-            None
-        } else {
-            Some(vec)
-        }
-    }
-    // Apply a map function to the collection and returns the new objects
-    pub fn map<K>(&self, predicate: fn(&T) -> K) -> Option<Vec<K>> {
-        if self.is_empty() {
-            return None;
-        }
-        let mut vec = Vec::new();
-        for i in 0..self.len() {
-            let pos = self.tuple_from_index(i);
-            vec.push((predicate)(&self.data[pos.0][pos.1]));
-        }
-        Some(vec)
-    }
     // Returns an iterator over the collection
     pub fn iter(&self) -> SortedContainerIter<'_, T> {
         SortedContainerIter {
@@ -303,18 +276,15 @@ impl<T: Ord + Clone> SortedContainers<T> {
             }
         }
         if bisect_maxes {
-            match self.order_type {
-                OrderType::Asc => {}
-                OrderType::Desc => {
-                    if low == self.maxes.len() {
-                        low -= 1;
-                    }
-                    if low > 0 {
-                        match self.maxes[low].cmp(value) {
-                            Ordering::Less => low -= 1,
-                            Ordering::Equal => {}
-                            Ordering::Greater => {}
-                        }
+            if let OrderType::Desc = self.order_type {
+                if low == self.maxes.len() {
+                    low -= 1;
+                }
+                if low > 0 {
+                    match self.maxes[low].cmp(value) {
+                        Ordering::Less => low -= 1,
+                        Ordering::Equal => {}
+                        Ordering::Greater => {}
                     }
                 }
             }
@@ -628,27 +598,6 @@ mod test {
             assert_eq!(c_element, *el);
             c_element += 1;
         }
-    }
-    #[test]
-    fn test_filter() {
-        let vec = gen_sorted_container(5_000, OrderType::Asc, false);
-        let filtered_elements = vec.filter(|x| x % 2 == 0);
-        assert!(filtered_elements.unwrap().len() == 5_000);
-    }
-    #[test]
-    fn test_map() {
-        let mut vec = SortedContainers::default();
-        let mut expected_sum = 0;
-        for i in 0..10 {
-            expected_sum += i * 2;
-            vec.insert(i);
-        }
-        let mapped_elements = vec.map(|x| x * 2);
-        let mut sum_mapped_elements = 0;
-        for el in mapped_elements.unwrap() {
-            sum_mapped_elements += el;
-        }
-        assert_eq!(sum_mapped_elements, expected_sum);
     }
 
     fn test_index_check_trait(vec: &SortedContainers<i32>) {
