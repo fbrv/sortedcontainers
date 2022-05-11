@@ -1,6 +1,6 @@
 [package]
 name = "sortedcontainers"
-version = "0.2.1"
+version = "0.3.0"
 authors = ["Fabio Baravalle <Fabio.Baravalle@gmail.com>"]
 license = "MIT OR Apache-2.0"
 description = "An experimental sorted data structure"
