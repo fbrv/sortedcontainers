@@ -19,5 +19,12 @@ impl<'a, T: Clone + Ord> Iterator for SortedContainerIter<'a, T> {
         self.idx += 1;
         Some(&self.data[self.pos][self.idx - 1])
     }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let mut max = 0;
+        for vec in self.data {
+            max += vec.len();
+        }
+        (0, Some(max))
+    }
 }
 impl<T: Ord + Clone> FusedIterator for SortedContainerIter<'_, T> {}

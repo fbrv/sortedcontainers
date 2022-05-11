@@ -80,6 +80,10 @@ impl<T: Ord + Clone> SortedContainers<T> {
     pub fn is_empty(&self) -> bool {
         self.len == 0
     }
+    /// Returns the current number of sub-vectors
+    pub fn depth(&self) -> usize {
+        self.data.len()
+    }
     /// Remove all the elements inside the sortedcontainers.
     pub fn clear(&mut self) {
         self.data.clear();
@@ -101,7 +105,7 @@ impl<T: Ord + Clone> SortedContainers<T> {
     ///
     /// If the element is not currently inside the collection, the element is inserted
     /// and the actual position is returned.
-    /// Complexity is O(log(M)) + O(N)
+    /// Complexity is O(log(M)) + O(log(N)) + O(N)
     /// If the element already exists, an error is returned.
     pub fn insert(&mut self, value: T) -> Result<usize, SortedContainersError<T>> {
         self.process_element(value, ProcessType::Insert)
@@ -169,6 +173,7 @@ impl<T: Ord + Clone> SortedContainers<T> {
             None
         }
     }
+    /// Apply a filter function to the collection and returns the filtered entries, if any
     pub fn filter(&self, predicate: fn(&T) -> bool) -> Option<Vec<T>> {
         let mut vec = Vec::new();
         for i in 0..self.len() {
@@ -183,7 +188,11 @@ impl<T: Ord + Clone> SortedContainers<T> {
             Some(vec)
         }
     }
+    // Apply a map function to the collection and returns the new objects
     pub fn map<K>(&self, predicate: fn(&T) -> K) -> Option<Vec<K>> {
+        if self.is_empty() {
+            return None;
+        }
         let mut vec = Vec::new();
         for i in 0..self.len() {
             let pos = self.tuple_from_index(i);
@@ -191,6 +200,7 @@ impl<T: Ord + Clone> SortedContainers<T> {
         }
         Some(vec)
     }
+    // Returns an iterator over the collection
     pub fn iter(&self) -> SortedContainerIter<'_, T> {
         SortedContainerIter {
             data: &self.data,
@@ -230,6 +240,8 @@ impl<T: Ord + Clone> SortedContainers<T> {
         self.data.insert(pos + 1, new_vec);
         self.build_index();
     }
+    ///given a position in input, the element at `self.data[position]` is merged to the previous
+    /// or next element present inside `self.data` depending on the the length of the two elements
     #[inline]
     fn shrink(&mut self, pos: usize) {
         let vec_to_expand: usize;
@@ -329,6 +341,7 @@ impl<T: Ord + Clone> SortedContainers<T> {
         }
         Err(low)
     }
+    /// given an index, the function returns the actual position in the form `(usize, usize)`
     #[inline]
     fn tuple_from_index(&self, index: usize) -> (usize, usize) {
         let mut data_pos = 0;
@@ -341,6 +354,7 @@ impl<T: Ord + Clone> SortedContainers<T> {
         }
         (data_pos, index - self.index[data_pos])
     }
+    /// given a position in the form `(usize, usize)`, returns an index
     #[inline]
     fn index_from_tuple(&self, pos: (usize, usize)) -> usize {
         if self.data.len() > 1 {
@@ -348,6 +362,7 @@ impl<T: Ord + Clone> SortedContainers<T> {
         }
         pos.1
     }
+    /// compute a positional index to transform `usize` position into `(usize, usize)`
     #[inline]
     fn build_index(&mut self) {
         self.index.clear();
@@ -360,6 +375,7 @@ impl<T: Ord + Clone> SortedContainers<T> {
                 .push(self.index[self.index.len() - 1] + self.data[i].len());
         }
     }
+    /// update the positional index whenever a new element is inserted or removed
     #[inline]
     fn update_index(&mut self, pos: usize, values_len: i32) {
         if self.maxes.len() > 1 {
@@ -612,6 +628,27 @@ mod test {
             assert_eq!(c_element, *el);
             c_element += 1;
         }
+    }
+    #[test]
+    fn test_filter() {
+        let vec = gen_sorted_container(5_000, OrderType::Asc, false);
+        let filtered_elements = vec.filter(|x| x % 2 == 0);
+        assert!(filtered_elements.unwrap().len() == 5_000);
+    }
+    #[test]
+    fn test_map() {
+        let mut vec = SortedContainers::default();
+        let mut expected_sum = 0;
+        for i in 0..10 {
+            expected_sum += i * 2;
+            vec.insert(i);
+        }
+        let mapped_elements = vec.map(|x| x * 2);
+        let mut sum_mapped_elements = 0;
+        for el in mapped_elements.unwrap() {
+            sum_mapped_elements += el;
+        }
+        assert_eq!(sum_mapped_elements, expected_sum);
     }
 
     fn test_index_check_trait(vec: &SortedContainers<i32>) {
